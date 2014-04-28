@@ -1,0 +1,10 @@
+/.hg
+/bin_client/*.exe
+/bin_client/*.dll
+/bin_server/*.exe
+/bin_server/*.dll
+/Debug
+/release
+/Qlauncher/GeneratedFiles
+/bin_mainserver
+/launcher/debug

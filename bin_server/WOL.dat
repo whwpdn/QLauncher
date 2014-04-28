@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<MacAddresses>
+    <MacAddress name="000000000000" ip="127.0.0.1" />
+    <MacAddress name="000000000000" ip="127.0.0.2" />
+    <MacAddress name="000000000000" ip="127.0.0.3" />
+    <MacAddress name="000000000000" ip="127.0.0.4" />
+    <MacAddress name="000000000000" ip="127.0.0.5" />
+    <MacAddress name="000000000000" ip="127.0.0.7" />
+    <MacAddress name="00241D29541A" ip="192.168.0.103" />
+    <MacAddress name="00089FDA2B8E" ip="192.168.200.111" />
+</MacAddresses>
