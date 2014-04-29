@@ -68,7 +68,7 @@ public:
 	public slots:
 		virtual void OnConnection() = 0;
 signals:
-	void updateProgramStateSignal(unsigned char, unsigned char, LauncherClient* pClient);
+	void updateProgramStateSignal(unsigned char, unsigned char, LauncherClient* pClient,QString strGroupName);
 	void connectionTimerFin();
 	void connectionTimerRestart();
 	void writeLogSignal(QString log);
@@ -120,7 +120,7 @@ public:
 		void powerOffButtonSlot(bool clicked);
 		virtual void OnConnection();
 		void rebootSlot(bool clicked);
-		void delButtonSlot(bool clicked);
+		//void delButtonSlot(bool clicked);
 		void treeItemChangedSlot(QStandardItem* item);
 		void saveIpConfig(bool clicked);
 		void changeCheckServerListSlot(int state);
@@ -149,6 +149,7 @@ private:
 	void ResetServerListTable();
 	void checkServerState();
 	QStandardItem* FindGroupItem(QString strGroupName);
+	void UpdateServerListTable();
 
 private:
     static ServerRole    sm_Instance;

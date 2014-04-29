@@ -38,7 +38,7 @@
 			>
 			<DebugSettings
 				Command="$(TargetPath)"
-				WorkingDirectory="..\bin_mainserver"
+				WorkingDirectory="..\bin_server"
 				CommandArguments=""
 				Attach="false"
 				DebuggerType="3"

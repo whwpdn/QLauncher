@@ -148,7 +148,7 @@ void QLauncher::initUI()
 	ui.edTargetPort->setText(m_ServerPort);
 
     m_pCurrentRole->initUI();
-    connect(m_pCurrentRole, SIGNAL(updateProgramStateSignal(unsigned char, unsigned char, LauncherClient*)), this, SLOT(updateProgramStateSlot(unsigned char, unsigned char, LauncherClient*)));
+    connect(m_pCurrentRole, SIGNAL(updateProgramStateSignal(unsigned char, unsigned char, LauncherClient*,QString)), this, SLOT(updateProgramStateSlot(unsigned char, unsigned char, LauncherClient*,QString)));
     connect(m_pCurrentRole, SIGNAL(connectionTimerFin()), this, SLOT(connectionTimerFinSlot()));
     connect(m_pCurrentRole, SIGNAL(connectionTimerRestart()), this, SLOT(connectionTimerReStartSlot()));
     connect(m_pCurrentRole, SIGNAL(writeLogSignal(QString)), this, SLOT(writeLog(QString)));
@@ -164,42 +164,95 @@ void QLauncher::writeLog(QString msg)
     ui.listLog->insertItem(0, msg);
 }
 //------------------------------------------------------------------------------------------------
-void QLauncher::updateProgramStateSlot(unsigned char id, unsigned char ucState, LauncherClient* pClient)
+void QLauncher::updateProgramStateSlot(unsigned char id, unsigned char ucState, LauncherClient* pClient,QString strGroupName)
 {
-    QStandardItemModel* pModel = qobject_cast<QStandardItemModel*>(ui.treeConnectionList->model());
-    if(!pModel) return;
+    //QStandardItemModel* pModel = qobject_cast<QStandardItemModel*>(ui.treeConnectionList->model());
+    //if(!pModel) return;
+	// 그룹을 찾는다
+	//QStandardItem* pGroupItem = FindGroupItem(strGroupName);
+	QStandardItem* pGroupItem =0;
+	QStandardItemModel* pModel = qobject_cast<QStandardItemModel*>(ui.treeConnectionList->model());
+	if(!pModel) return;
 
-    for(int i = 0, n = pModel->rowCount(); i < n; ++i)
-    {
-        QStandardItem* pItem = pModel->item(i);
-        if(!pItem) continue;
+	for(int i = 0, n = pModel->rowCount(); i < n; ++i)
+	{
+		pGroupItem = pModel->item(i);
+		if(pGroupItem)
+		{	// group 아이테을 찾는다
+			if(strGroupName== pGroupItem->data().value<QString>())
+				break;
+		}
 
-        if(pClient != pItem->data().value<LauncherClient*>())
-            continue;
+		// group 일경우 이름 ON, OFF 로 안바뀌도록
+		if(pModel->item(i,1)->text().compare("Group",Qt::CaseInsensitive) ==0)
+			continue;
 
-        for(int k = 0, kn = pItem->rowCount(); k < kn; ++k)
-        {
-            QStandardItem* pChild = pItem->child(k);
-            if(!pChild) continue;
-            unsigned char ucid = pChild->data().value<unsigned char>();
-            if (id == ucid)
-            {
-                QStandardItem* pFindItem = pItem->child(k, 1);
-                if(pFindItem)
-                    pFindItem->setText(ucState == 0 ? "OFF" : "ON");
-                return;
-            }
-        }
+		// Client 일 경우 프로그램 아이템의 ON,OFF 여부를 변경
+		QStandardItem* pItem = pModel->item(i);
+		QVariant aVar = pItem->data();
+		if (id == aVar.value<unsigned char>())
+		{
+			QStandardItem* pFindItem = pModel->item(i, 1);
+			if(pFindItem)
+				pFindItem->setText(ucState == 0 ? "OFF" : "ON");
+			return;
+		}
+	}
 
-        QVariant aVar = pItem->data();
-        if (id == aVar.value<unsigned char>())
-        {
-            QStandardItem* pFindItem = pModel->item(i, 1);
-            if(pFindItem)
-                pFindItem->setText(ucState == 0 ? "OFF" : "ON");
-            return;
-        }
-    }
+	for (int i = 0, n = pGroupItem->rowCount(); i < n; i++)
+	{
+		// server 일 경우 client의 프로그램 리스트의 ON,OFF 여부를 변경
+		QStandardItem* pClientItem = pGroupItem->child(i);
+		if(!pClientItem) continue;
+		if(pClient != pClientItem->data().value<LauncherClient*>())
+			continue;
+
+		for(int k = 0, kn = pClientItem->rowCount(); k < kn; ++k)
+		{
+			QStandardItem* pProgItem = pClientItem->child(k);
+			if(!pProgItem) continue;
+			unsigned char ucid = pProgItem->data().value<unsigned char>();
+			if (id == ucid)
+			{
+				QStandardItem* pFindItem = pClientItem->child(k, 1);
+				if(pFindItem)
+					pFindItem->setText(ucState == 0 ? "OFF" : "ON");
+				return;
+			}
+		}		
+	}
+//////
+    //for(int i = 0, n = pModel->rowCount(); i < n; ++i)
+    //{
+    //    QStandardItem* pItem = pModel->item(i);
+    //    if(!pItem) continue;
+
+    //    if(pClient != pItem->data().value<LauncherClient*>())
+    //        continue;
+
+    //    for(int k = 0, kn = pItem->rowCount(); k < kn; ++k)
+    //    {
+    //        QStandardItem* pChild = pItem->child(k);
+    //        if(!pChild) continue;
+    //        unsigned char ucid = pChild->data().value<unsigned char>();
+    //        if (id == ucid)
+    //        {
+    //            QStandardItem* pFindItem = pItem->child(k, 1);
+    //            if(pFindItem)
+    //                pFindItem->setText(ucState == 0 ? "OFF" : "ON");
+    //            return;
+    //        }
+    //    }
+
+		//QVariant aVar = pItem->data();
+  //      if (id == aVar.value<unsigned char>())
+  //      {
+  //          QStandardItem* pFindItem = pModel->item(i, 1);
+  //          if(pFindItem)
+  //              pFindItem->setText(ucState == 0 ? "OFF" : "ON");
+  //          return;
+  //      }
+	 // }
 
     //ui.treeConnectionList->setCurrentIndex(ui.treeConnectionList->currentIndex());
 }

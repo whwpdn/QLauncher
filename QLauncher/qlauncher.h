@@ -26,7 +26,7 @@ public:
 
 	public slots:
 		void writeLog(QString msg);
-		void updateProgramStateSlot(unsigned char, unsigned char ucState, LauncherClient* pClient);
+		void updateProgramStateSlot(unsigned char, unsigned char ucState, LauncherClient* pClient,QString strGroupName);
 		void updateSlot();
 		void connectionTimerFinSlot();
 		void connectionTimerReStartSlot();

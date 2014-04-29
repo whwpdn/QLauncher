@@ -212,7 +212,7 @@ void ServerRole::initUI()
     connect(m_pUI->btnOffAll, SIGNAL(clicked(bool)), this, SLOT(OffAllButtonSlot(bool)));
     connect(m_pUI->treeConnectionList, SIGNAL(clicked(const QModelIndex&)), this, SLOT(treeSelectSlot(const QModelIndex&)));
     connect(m_pUI->btnReboot, SIGNAL(clicked(bool)), this, SLOT(rebootSlot(bool)));
-    connect(m_pUI->btnDelete, SIGNAL(clicked(bool)), this, SLOT(delButtonSlot(bool)));
+    //connect(m_pUI->btnDelete, SIGNAL(clicked(bool)), this, SLOT(delButtonSlot(bool)));
 	connect(m_pUI->btnSaveConf, SIGNAL(clicked(bool)), this, SLOT(saveIpConfig(bool)));
 
     //QObject::connect(&m_ConnectionCheckTimer, SIGNAL(timeout()), this, SLOT(ConnectionCheckSlot()));
@@ -249,8 +249,6 @@ void ServerRole::ResetServerListTable()
 	m_pUI->tableServerList->setHorizontalHeaderItem(2,new QTableWidgetItem("Group"));
 	m_pUI->tableServerList->setHorizontalHeaderItem(3,new QTableWidgetItem("check"));
 	m_pUI->tableServerList->setHorizontalHeaderItem(4,new QTableWidgetItem("status"));
-
-
 }
 void ServerRole::btnServerConnSlot(bool clicked)
 {
@@ -278,8 +276,10 @@ void ServerRole::changeCheckServerListSlot(int state)
 	}
 	else
 	{
+		m_pUI->tableServerList->clear();
 		m_pUI->tableServerList->hide();
 		m_pUI->tableServerList->setRowCount(0);
+		
 	}
 }
 //------------------------------------------------------------------------------------------------
@@ -296,26 +296,46 @@ void ServerRole::checkServerState()
 		if(curTime - pSSI->m_iReceiveServerTime > 3500)
 		{
 			pSSI->m_bState = false;
-			pSSI->m_pSocket->Close();
-			delete pSSI->m_pSocket;
+			if(pSSI->m_pSocket)
+			{
+				pSSI->m_pSocket->Close();
+				delete pSSI->m_pSocket;
+			}
 
 			LauncherClient* pClient = findClient(it.key());
+			if(!pClient) continue;
+			//QStandardItemModel* pModel = qobject_cast<QStandardItemModel*>(m_pUI->treeConnectionList->model());
+			//그룹을 찾는다.
+			QStandardItem* pGroupItem = FindGroupItem(m_SocketMap[it.key()]->m_strGroupName);
+			if(!pGroupItem) continue;
 
-			QStandardItemModel* pModel = qobject_cast<QStandardItemModel*>(m_pUI->treeConnectionList->model());
-			QStandardItem* pClientItem = FindClientItem(pClient);
+			//			QStandardItem* pClientItem = FindClientItem(pClient);
 
-			QStandardItem* pItem = pModel->item(pClientItem->row());
-			if(!pItem) return;
-			for(int i = 0, kn = pItem->rowCount(); i < kn; ++i)
+			// 그룹안에 있는 클라이언트 찾는거.
+			QStandardItem* pClientItem=NULL;
+
+			for(int i=0,n=pGroupItem->rowCount();i<n;i++)
 			{
-				delete pItem->child(i, 0);
-				delete pItem->child(i, 1);
-				delete pItem->child(i, 2);
-				delete pItem->child(i, 3);
+				pClientItem = pGroupItem->child(i);
+				if(pClientItem)
+				{
+					if(pClient == pClientItem->data().value<LauncherClient*>())
+						break;
+				}
 			}
-			pModel->removeRows(pClientItem->row(),1);
+			//QStandardItem* pItem = pModel->item(pClientItem->row());
+			//if(!pItem) return;
+
+			for(int i = 0, kn = pClientItem->rowCount(); i < kn; ++i)
+			{
+				delete pClientItem->child(i, 3);
+				delete pClientItem->child(i, 2);
+				delete pClientItem->child(i, 1);
+				delete pClientItem->child(i, 0);
+			}
+			pGroupItem->removeRows(pClientItem->row(),1);
 			Release(it.key());
-			SetServerListToTable();
+			UpdateServerListTable();
 			pSSI->m_pSocket = new Socket();
 		}
         //InternetAddress aAddr;
@@ -426,7 +446,7 @@ void ServerRole::OnConnection()
 		}
 	}
 	emit connectionTimerFin();
-	SetServerListToTable();
+	UpdateServerListTable();
 }
 //------------------------------------------------------------------------------------------------
 void ServerRole::Update()
@@ -587,6 +607,41 @@ LauncherClient* ServerRole::findClient(QString ip)
 //------------------------------------------------------------------------------------------------
 void ServerRole::removeClient(QString strIP)
 {
+	//////
+	//그룹을 찾는다.
+	QStandardItem* pGroupItem = FindGroupItem(m_SocketMap[strIP]->m_strGroupName);
+	if(!pGroupItem) return;
+	// 삭제할 아이템 ..
+	LauncherClient* pClient = m_mapClient[strIP];
+	if (pClient)
+	{
+		m_mapClient.remove(strIP);
+		//m_mapClientConnection.remove(strIP);
+		delete pClient;
+	}
+	for(int i = 0, n = pGroupItem->rowCount(); i < n; ++i)
+	{
+		QStandardItem* pClientItem = pGroupItem->child(i);
+		if(!pClientItem) continue;
+
+		if(strIP.compare(pClientItem->text(), Qt::CaseInsensitive) == 0)
+		{
+			delete pGroupItem->child(i, 3);
+			delete pGroupItem->child(i, 2);
+			delete pGroupItem->child(i, 1);
+			delete pGroupItem->child(i, 0);
+			pGroupItem->removeRow(i);
+			break;
+		}
+	}
+	m_SocketMap[strIP]->m_bState = false;
+	m_SocketMap[strIP]->m_pSocket->Close();
+	delete m_SocketMap[strIP]->m_pSocket;
+	m_SocketMap[strIP]->m_pSocket = new Socket;
+	UpdateServerListTable();
+	//Release(strIP);
+	//////
+	/*
     QStandardItemModel* pModel = qobject_cast<QStandardItemModel*>(m_pUI->treeConnectionList->model());
     if(!pModel) return;
 
@@ -614,6 +669,7 @@ void ServerRole::removeClient(QString strIP)
             break;
         }
     }
+	*/
 }
 //------------------------------------------------------------------------------------------------
 void ServerRole::removeClient(ClientInfoPacket* pPacket)
@@ -675,7 +731,7 @@ void ServerRole::onButtonSlot(bool clicked)
     int iSize = packet.MakeDataBuff(buff);
     pMessageManager->Send(buff, iSize);
 
-    emit updateProgramStateSignal(packet.m_ProgramId, true, pClient);
+    emit updateProgramStateSignal(packet.m_ProgramId, true, pClient,pParent->parent()->text());
 }
 //------------------------------------------------------------------------------------------------
 void ServerRole::offButtonSlot(bool clicked)
@@ -706,7 +762,7 @@ void ServerRole::offButtonSlot(bool clicked)
     int iSize = packet.MakeDataBuff(buff);
     pMessageManager->Send(buff, iSize);
 
-    emit updateProgramStateSignal(packet.m_ProgramId, false, pClient);
+    emit updateProgramStateSignal(packet.m_ProgramId, false, pClient,pParent->parent()->text());
 }
 //------------------------------------------------------------------------------------------------
 void ServerRole::powerButtonSlot(bool clicked)
@@ -739,19 +795,25 @@ void ServerRole::powerOffButtonSlot(bool clicked)
 {
 	LauncherClient* pLauncherClient =0;
 	QMap<QString, LauncherClient*>::iterator it,end;
-	QStandardItemModel* pModel = qobject_cast<QStandardItemModel*>(m_pUI->treeConnectionList->model());
+	//QStandardItemModel* pModel = qobject_cast<QStandardItemModel*>(m_pUI->treeConnectionList->model());
+
 	for(it=m_mapClient.begin(),end=m_mapClient.end();it !=end;++it)
 	{
 		pLauncherClient = it.value();
-		QStandardItem* pClientItem = FindClientItem(pLauncherClient);
-		QStandardItem* pCheck = pModel->item(pClientItem->row(),2);
-		if(pCheck&&pCheck->checkState() !=Qt::Checked)
-			continue;
-		char buff[50]={0,};
-		NetMessage aMsg(PACKET_SHUTDOWN);
-		NetMessageManager* pMessageManager = pLauncherClient->GetMessageManager();
-		int iSize = aMsg.MakeDataBuff(buff);
-        pMessageManager->Send(buff, iSize);
+		// 그룹을 찾는다
+		QStandardItem* pGroupItem = FindGroupItem(m_SocketMap[pLauncherClient->getClientIP()]->m_strGroupName);
+		for (int i = 0, n = pGroupItem->rowCount(); i < n; i++)
+		{
+			//QStandardItem* pGroupChild = pGroupItem->child(i);
+			QStandardItem* pCheck = pGroupItem->child(pGroupItem->row(),2);
+			if(pCheck && pCheck->checkState()!=Qt::Checked)
+				continue;
+			char buff[50]={0,};
+			NetMessage aMsg(PACKET_SHUTDOWN);
+			NetMessageManager* pMessageManager = pLauncherClient->GetMessageManager();
+			int iSize = aMsg.MakeDataBuff(buff);
+			pMessageManager->Send(buff, iSize);
+		}
 	}	
 }
 
@@ -766,19 +828,23 @@ void ServerRole::OnAllButtonSlot(bool clicked)
 	char buff[1000]={0,};
     LauncherClient* pLauncherClient = 0;
     QMap<QString, LauncherClient*>::iterator it, end;
-    QStandardItemModel* pModel = qobject_cast<QStandardItemModel*>(m_pUI->treeConnectionList->model());
+    //QStandardItemModel* pModel = qobject_cast<QStandardItemModel*>(m_pUI->treeConnectionList->model());
 	
     for (it = m_mapClient.begin(), end = m_mapClient.end(); it != end; ++it)
     {
         pLauncherClient = it.value();
-		QStandardItem* pGroupItem = FindGroupItem(m_SocketMap[pLauncherClient->getClientIP()]->m_strGroupName);
+		// 그룹을 찾는다
+		QString strGroupName = m_SocketMap[pLauncherClient->getClientIP()]->m_strGroupName;
+		QStandardItem* pGroupItem = FindGroupItem(strGroupName);
 		//
 		for (int i = 0, n = pGroupItem->rowCount(); i < n; i++)
 		{
+			//클라이언트를 찾는다
 			QStandardItem* pGroupChild = pGroupItem->child(i);
-			QStandardItem* pCheck = pGroupChild->child(pGroupChild->row(),2);
-			if(pCheck && pCheck->checkState()!=Qt::Checked)
-				continue;
+			
+			//QStandardItem* pCheck = pGroupChild->child(pGroupChild->row(),2);
+			//if(pCheck && pCheck->checkState()!=Qt::Checked)
+			//	continue;
 			QMap<unsigned char, LauncherProgramInfo*>& aInfoMap = pLauncherClient->getProgramMap();
 
 			QMap<unsigned char, LauncherProgramInfo*>::iterator it0, end0;
@@ -794,10 +860,11 @@ void ServerRole::OnAllButtonSlot(bool clicked)
 				for(int i = 0, n = pGroupChild->rowCount(); i < n; ++i)
 				{
 					QStandardItem* pProgramItem = pGroupChild->child(i);
-					if(pLauncherProgramInfo->m_ucID== pProgramItem ->data().value<unsigned char>())
+					if(pLauncherProgramInfo->m_ucID== pProgramItem->data().value<unsigned char>())
 					{
+						// 프로그램에 체크 상태를 검사
 						if(pGroupChild->child(pProgramItem->row(), 2)->checkState() != Qt::Checked)
-							break;
+							continue;
 						packet.m_ProgramId = pLauncherProgramInfo->m_ucID;
 						pLauncherProgramInfo->m_ucState =! pLauncherProgramInfo->m_ucState;
 
@@ -807,7 +874,7 @@ void ServerRole::OnAllButtonSlot(bool clicked)
 
 						pMessageManager->Send(buff, iSize);
 
-						emit updateProgramStateSignal(pLauncherProgramInfo->m_ucID, true, pLauncherClient);
+						emit updateProgramStateSignal(pLauncherProgramInfo->m_ucID, true, pLauncherClient,strGroupName);
 					}
 				}
 			}
@@ -825,12 +892,13 @@ void ServerRole::OffAllButtonSlot(bool clicked)
 	char buff[1000]={0,};
     LauncherClient* pLauncherClient = 0;
     QMap<QString, LauncherClient*>::iterator it, end;
-    QStandardItemModel* pModel = qobject_cast<QStandardItemModel*>(m_pUI->treeConnectionList->model());
+    //QStandardItemModel* pModel = qobject_cast<QStandardItemModel*>(m_pUI->treeConnectionList->model());
 //////	
     for (it = m_mapClient.begin(), end = m_mapClient.end(); it != end; ++it)
     {
         pLauncherClient = it.value();
-		QStandardItem* pGroupItem = FindGroupItem(m_SocketMap[pLauncherClient->getClientIP()]->m_strGroupName);
+		QString strGroupName = m_SocketMap[pLauncherClient->getClientIP()]->m_strGroupName;
+		QStandardItem* pGroupItem = FindGroupItem(strGroupName);
 		//
 		for (int i = 0, n = pGroupItem->rowCount(); i < n; i++)
 		{
@@ -866,7 +934,7 @@ void ServerRole::OffAllButtonSlot(bool clicked)
 
 						pMessageManager->Send(buff, iSize);
 
-						emit updateProgramStateSignal(pLauncherProgramInfo->m_ucID, false, pLauncherClient);
+						emit updateProgramStateSignal(pLauncherProgramInfo->m_ucID, false, pLauncherClient,strGroupName);
 					}
 				}
 			}
@@ -1143,7 +1211,7 @@ void ServerRole::SetServerListToTable()
 		if(pServerSocketInfo->m_bState)
 		{
 			pCol4->setCheckState(Qt::Unchecked);
-			pCol4->setFlags((Qt::ItemIsUserCheckable));
+			//pCol4->setFlags((Qt::ItemIsUserCheckable));
 			pCol5 = new QTableWidgetItem("connected") ;
 		}
 		else
@@ -1162,6 +1230,37 @@ void ServerRole::SetServerListToTable()
 		m_pUI->tableServerList->setItem(i,4,pCol5);
 		i++;
 	}
+}
+void ServerRole::UpdateServerListTable()
+{
+	//table에 server ip주소 추가
+	//m_pUI->tableServerList->setRowCount(0);
+	QMap<QString, ServerSocketInfo*>::iterator it2,end2;
+	int i=0;
+	for (it2 = m_SocketMap.begin(), end2 = m_SocketMap.end(); it2 != end2; ++it2)
+	{
+		ServerSocketInfo* pServerSocketInfo = it2.value();
+		QTableWidgetItem* pCol4,*pCol5;
+		//QStandardItemModel* pModel = qobject_cast<QStandardItemModel*>(m_pUI->tableServerList->model());
+
+		pCol4 = m_pUI->tableServerList->item(i,3);
+		pCol5 = m_pUI->tableServerList->item(i,4);
+		if(pServerSocketInfo->m_bState)
+		{
+			pCol4->setCheckState(Qt::Unchecked);
+			//pCol4->setFlags((Qt::ItemIsUserCheckable));
+			pCol5->setText("connected");
+		}
+		else
+		{
+			pCol4->setCheckState(Qt::Checked);
+			//pCol4->setFlags((Qt::ItemIsUserCheckable));
+			//pCol3->setFlags(Qt::ItemIsUserCheckable);
+			pCol5->setText("disconnected");
+		}
+		i++;
+	}
+	m_pUI->tableServerList->viewport()->update();
 }
 void ServerRole::SetWOLDataToList()
 {
@@ -1490,6 +1589,7 @@ void ServerRole::rebootSlot(bool clicked)
     sendPacket(&aMsg);	
 }
 //------------------------------------------------------------------------------------------------
+/*
 void ServerRole::delButtonSlot(bool clicked)
 {
     int row = m_pUI->treeConnectionList->currentIndex().row();
@@ -1528,7 +1628,7 @@ void ServerRole::delButtonSlot(bool clicked)
 
     sendPacket(&aPacket, strLog);
 }
-
+*/
 bool ServerRole::addServerInfo()
 {
 	TiXmlDocument aDoc;    
@@ -1641,25 +1741,42 @@ void ClientRole::initComm()
 //------------------------------------------------------------------------------------------------
 void ClientRole::Release()
 {
+	ClientInfoPacket packet;
+	QString strHomeName = QHostInfo::localHostName();
+	sprintf_s(packet.m_acClientName, 24, "%s", strHomeName.isEmpty() ? "NoName" : strHomeName.toStdString().c_str());
+	sprintf_s(packet.m_acIP, 16, "%s", m_LocalIP.toStdString().c_str());
+	sprintf_s(packet.m_acClientType,7,"%s","client");
+	packet.m_uiProgramCount = 1;
+	packet.m_ucClientOn = CLIENT_CONNECTIONLESS;
+	sendPacket(&packet, QString::fromLocal8Bit("클라이언트 연결 패킷 전송"));
+
+	QMap<QString, NetMessageManager*>::iterator it, end;
+	NetMessageManager* pNetMessageManager = 0;
+	for (it = m_NetMessageManagerMap.begin(), end = m_NetMessageManagerMap.end(); it != end; ++it)
+	{
+		pNetMessageManager = it.value();
+		delete pNetMessageManager;
+		pNetMessageManager =0;
+	}
    // if(m_bModified)
    //     saveProgramList();
-    if (m_pNetMessageManager)
-    {
-        ClientInfoPacket packet;
-        QString strHomeName = QHostInfo::localHostName();
-        sprintf_s(packet.m_acClientName, 24, "%s", strHomeName.isEmpty() ? "NoName" : strHomeName.toStdString().c_str());
-        sprintf_s(packet.m_acIP, 16, "%s", m_LocalIP.toStdString().c_str());
-        packet.m_uiProgramCount = 1;
-        packet.m_ucClientOn = CLIENT_CONNECTIONLESS;
+  //  if (m_pNetMessageManager)
+  //  {
+  //      ClientInfoPacket packet;
+  //      QString strHomeName = QHostInfo::localHostName();
+  //      sprintf_s(packet.m_acClientName, 24, "%s", strHomeName.isEmpty() ? "NoName" : strHomeName.toStdString().c_str());
+  //      sprintf_s(packet.m_acIP, 16, "%s", m_LocalIP.toStdString().c_str());
+  //      packet.m_uiProgramCount = 1;
+  //      packet.m_ucClientOn = CLIENT_CONNECTIONLESS;
 
-		char buff[1000]={0,};
-        int iSize = packet.MakeDataBuff(buff);
+		//char buff[1000]={0,};
+  //      int iSize = packet.MakeDataBuff(buff);
 
-        m_pNetMessageManager->Send(buff, iSize);
+  //      m_pNetMessageManager->Send(buff, iSize);
 
-        delete m_pNetMessageManager;
-        m_pNetMessageManager = 0;
-    }
+  //      delete m_pNetMessageManager;
+  //      m_pNetMessageManager = 0;
+  //  }
 }
 //------------------------------------------------------------------------------------------------
 void ClientRole::Update()
@@ -2076,7 +2193,7 @@ void ClientRole::commandProcess(CommandInfoPacket* pPacket)
 
             pProcess->waitForStarted();
 
-            emit updateProgramStateSignal(pPacket->m_ProgramId, true, NULL);
+            emit updateProgramStateSignal(pPacket->m_ProgramId, true, NULL,NULL);
         }
         else // PROGRAM_OFF
         {
@@ -2093,7 +2210,7 @@ void ClientRole::commandProcess(CommandInfoPacket* pPacket)
 
             delete pProcess;
 
-            emit updateProgramStateSignal(pPacket->m_ProgramId, false, NULL);
+            emit updateProgramStateSignal(pPacket->m_ProgramId, false, NULL,NULL);
         }
     }
     else
