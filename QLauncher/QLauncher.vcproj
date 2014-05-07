@@ -192,6 +192,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ManagerProcessor.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\message.cpp"
 				>
 			</File>
@@ -306,6 +310,10 @@
 						Outputs="&quot;.\GeneratedFiles\$(ConfigurationName)\moc_$(InputName).cpp&quot;"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\ManageProcessor.h"
+				>
 			</File>
 			<File
 				RelativePath=".\message.h"

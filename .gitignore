@@ -1,4 +1,3 @@
-/.hg
 /bin_client/*.exe
 /bin_client/*.dll
 /bin_server/*.exe
@@ -8,4 +7,6 @@
 /Qlauncher/GeneratedFiles
 /bin_mainserver
 /launcher/debug
-/*.ncb
+/QLauncher.ncb
+/Launcher.ncb
+/QLauncher.suo

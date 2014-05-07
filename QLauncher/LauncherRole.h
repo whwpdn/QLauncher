@@ -5,6 +5,7 @@
 #include "ui_qlauncher.h"
 #include <QTimer>
 #include <QTime>
+#include "ManageProcessor.h"
 //#include <stdio.h>
 class NetMessage;
 class Socket;

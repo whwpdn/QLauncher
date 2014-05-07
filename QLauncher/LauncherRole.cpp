@@ -312,7 +312,7 @@ void ServerRole::checkServerState()
 			QStandardItem* pGroupItem = FindGroupItem(m_SocketMap[it.key()]->m_strGroupName);
 			if(!pGroupItem) continue;
 
-			//			QStandardItem* pClientItem = FindClientItem(pClient);
+			//	QStandardItem* pClientItem = FindClientItem(pClient);
 
 			// 그룹안에 있는 클라이언트 찾는거.
 			QStandardItem* pClientItem=NULL;
@@ -514,7 +514,10 @@ void ServerRole::ProcessMessage()
                     if(pPacket->m_ucClientOn)
                         addClient(pPacket, (*it));
                     else
+					{
                         removeClient(pPacket);
+						return;
+					}
                 }
                 break;
 			
@@ -618,13 +621,13 @@ void ServerRole::removeClient(QString strIP)
 	// 삭제할 아이템 ..
 	LauncherClient* pClient = m_mapClient[strIP];
 	
-	if (pClient)
-	{
-		m_mapClient.remove(strIP);
-		//m_mapClientConnection.remove(strIP);
-		delete pClient;
-	}
-	//Release(strIP);
+	//if (pClient)
+	//{
+	//	m_mapClient.remove(strIP);
+	//	//m_mapClientConnection.remove(strIP);
+	//	delete pClient;
+	//}
+	Release(strIP);
 	for(int i = 0, n = pGroupItem->rowCount(); i < n; ++i)
 	{
 		QStandardItem* pClientItem = pGroupItem->child(i);
@@ -2191,8 +2194,19 @@ void ClientRole::commandProcess(CommandInfoPacket* pPacket)
         {
             QMap<unsigned char, QProcess*>::iterator it0;
             it0 = m_mapProcesses.find(pPacket->m_ProgramId);
-            if (it0 == m_mapProcesses.end())
+			if (it0 == m_mapProcesses.end())
+			{
+				QMap<unsigned char, QString>::iterator it2;
+				it2 = m_mapPrograms.find(pPacket->m_ProgramId);
+
+				if(it2!=m_mapPrograms.end())
+				{
+					QDir dir(it2.value());
+					QString strName = dir.dirName();
+					TerminateProcessor(strName.toStdString());
+				}
                 return;
+			}
 
             QProcess* pProcess = it0.value();
             pProcess->kill();
