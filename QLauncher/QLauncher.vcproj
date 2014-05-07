@@ -82,7 +82,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="copy $(OutDir)\$(ProjectName).exe ..\bin_client&#x0D;&#x0A;copy $(OutDir)\$(ProjectName).exe ..\bin_server&#x0D;&#x0A;copy $(OutDir)\$(ProjectName).exe ..\bin_mainserver&#x0D;&#x0A;&#x0D;&#x0A;"
+				CommandLine="copy $(OutDir)\$(ProjectName).exe ..\bin_client&#x0D;&#x0A;copy $(OutDir)\$(ProjectName).exe ..\bin_server&#x0D;&#x0A;"
 			/>
 		</Configuration>
 		<Configuration
@@ -155,7 +155,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="copy $(OutDir)\$(ProjectName)d.exe ..\bin_client&#x0D;&#x0A;copy $(OutDir)\$(ProjectName)d.exe ..\bin_server&#x0D;&#x0A;copy $(OutDir)\$(ProjectName)d.exe ..\bin_mainserver&#x0D;&#x0A;&#x0D;&#x0A;"
+				CommandLine="copy $(OutDir)\$(ProjectName)d.exe ..\bin_client&#x0D;&#x0A;copy $(OutDir)\$(ProjectName)d.exe ..\bin_server&#x0D;&#x0A;&#x0D;&#x0A;"
 			/>
 		</Configuration>
 	</Configurations>

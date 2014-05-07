@@ -114,6 +114,10 @@ void NetTcpMessageParser::run()
         siReadyByte = m_pSocket->Receive(sBuff, 10000);
         if (siReadyByte > 0)
             m_Queue.CPush(sBuff, siReadyByte);
+		else if(siReadyByte==0)
+		{
+	
+		}
 		else
 		{
 			WaitForSingleObject(m_ReceiveEvent, 100);
